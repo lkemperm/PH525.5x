@@ -56,6 +56,7 @@ Need indirect ways to count molecules. Labeling adds a chemical to each molecule
 
 Design attribute of different technologies: synthetically sequenced, or cloned. Densities of probes put on the solid is also variable across different technologies. Also # samples on each array differs. 
 Major manufacturers: 
+
 1. Affymetrix (high density, one color)
 2. Agilent (circles on grid, one or two color)
 3. Illumina (high density, one or two color)
