@@ -39,5 +39,24 @@ data(ebicat_2020_04_30)
 ebicat_2020_04_30
 ```
 
+## Microarray Technology 1: How Hybridization Works 
+* Two technologies: microarray and NGS 
+* Both counting DNA or RNA molecules 
+* Both use a trick which allows us to take double-stranded DNA and convert to single-stranded 
+* Both require thousands - millions of molecules for us to be able to measure anything 
+* If a few cells only, they must be amplified 
 
+### Microarray Technology 
+1. Denaturation (single-stranded)
+2. Hybridization - when you have a single strand in solution and it finds complimentary DNA, it will hybridize to form 2 stranded DNA. This can be exploited to count molecules 
+3. Can create probes / troughs for different sequences. Put on location on piece of solid for the molecules we want to be able to count. Probes have compliments to the DNA that we want to count. 
 
+### Labeling 
+Need indirect ways to count molecules. Labeling adds a chemical to each molecule, use optical scanner to identify the different intensities based on # labels and quantify. 
+
+Design attribute of different technologies: synthetically sequenced, or cloned. Densities of probes put on the solid is also variable across different technologies. Also # samples on each array differs. 
+Major manufacturers: 
+1. Affymetrix (high density, one color)
+2. Agilent (circles on grid, one or two color)
+3. Illumina (high density, one or two color)
+   * Uses beads instead of in-situ sequencing
