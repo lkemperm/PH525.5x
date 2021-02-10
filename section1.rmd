@@ -20,8 +20,24 @@ head(sig.gene70)[,1:6]
 ## Assessment: Phenotypes 
 * COPDSexualDimorphism.data package - phenotypes (cols) individuals (rows)
 * Data to assess incidence of COPD and emphysema by gender and smoking status
+* The pkyrs variable in the expr.meta data.frame represents pack years smoked. Other variables include gender and diagmaj (disease status). These variables correspond to phenotypes.
 
 ```r
 library(COPDSexualDimorphism.data)
 data(lgrc.expr.meta)
 ```
+
+## Assessment: Chromosomes and SNPs 
+* GWAS (Genome-wide association studies)
+* Comparing individuals with disease vs. controls using SNP chips or DNA sequencing. 
+* SNPs with association are investigated for disruption of gene regulation or function 
+* Bioconductor *gwascat* package
+
+```r
+library(gwascat)
+data(ebicat_2020_04_30)
+ebicat_2020_04_30
+```
+
+
+
