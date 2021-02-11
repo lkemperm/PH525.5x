@@ -15,6 +15,13 @@ library(genefu)
 data(sig.gene70)
 dim(sig.gene70)
 head(sig.gene70)[,1:6]
+count_nan_gene_symbol <- sum(is.na(sig.gene70$NCBI.gene.symbol))
+paste("Count of NaN NCBI gene symbols: ", count_nan_gene_symbol)
+subset_matching_desc <- sig.gene70[which(sig.gene70$Description == "cyclin E2"), ]
+paste("NCBI gene matching the description cyclin E2: ", subset_matching_desc$NCBI.gene.symbol)
+number_kinase_coding_genes <- length(grep("kinase", sig.gene70$Description))
+paste("Number of kinase coding genes responsible for cell to cell communication: ", number_kinase_coding_genes)
+
 ```
 
 ## Assessment: Phenotypes 
@@ -25,6 +32,15 @@ head(sig.gene70)[,1:6]
 ```{r}
 library(COPDSexualDimorphism.data)
 data(lgrc.expr.meta)
+head(expr.meta)
+table(expr.meta$GENDER)
+summary(expr.meta$pkyrs)
+
+qqnorm(expr.meta$pkyrs, pch=1, frame=FALSE)
+qqline(expr.meta$pkyrs, col = "steelblue", lwd = 2)
+
+boxplot(pkyrs~gender, data=expr.meta)
+
 ```
 
 ## Assessment: Chromosomes and SNPs 
@@ -37,6 +53,8 @@ data(lgrc.expr.meta)
 library(gwascat)
 data(ebicat_2020_04_30)
 ebicat_2020_04_30
+
+sort(table(ebicat_2020_04_30$CHR_ID), decreasing=TRUE)
 ```
 
 ## Microarray Technology 1: How Hybridization Works 
@@ -49,7 +67,45 @@ ebicat_2020_04_30
 ### Microarray Technology 
 1. Denaturation (single-stranded)
 2. Hybridization - when you have a single strand in solution and it finds complimentary DNA, it will hybridize to form 2 stranded DNA. This can be exploited to count molecules 
-3. Can create probes / troughs for different sequences. Put on location on piece of solid for the molecules we want to be able to count. Probes have compliments to the DNA that we want to count. 
+3. Can create probes / troughs for different sequences. Put on location on piece of solid for the molecules we want to be able to count. Probes have compliments to the DNA that we want to count.
+
+#### How microarray technology works 
+* Piece of solid where we put probes - 1x1 cm piece of silicone that gets divided into thousands to millions of cells (difference squares)
+* squares correspond to probes which represent molecules we are trying to count 
+* 25bP long probes in example 
+* second step: label a sample with fluorescent tags and put on array. hope that right molecules hybridize to right probes
+
+#### Two-color microarrays 
+* Hybridize two samples onto one array - two different labels that scanner can recognize 
+* Advantages: cost savings 
+* Sample 1: color 1, Sample 2: color 2. Let hybridize and get both hybridized to same probes, but scanner can distinguish two types of labels. 
+* Two numbers per probe -- converted into RGB color combining red and green 
+
+#### Applications of microarray technology 
+* 3 different applications 
+
+1. **Measuring gene expression** - gene chip array. 
+
+* For every gene, we know the sequence and take 11 sequences for individual transcripts and hybridize. 
+* On this array, probes are towards 3' end of transcripts b/c RNA tends to degrade more on one side (5' end). 
+* 11 probes scattered around array to avoid confounding location with gene for each transcript. 
+* Label the RNA, put it on the array. Will see lots of hybridization if there are many copies of that transcript. 
+* High intensity = highly expressed gene. For each gene, select n probes and put them on the array and analyze the data. 
+
+2. **Genotyping SNP** - different alleles 2 of same or 1 of each.
+
+* I.e., AA, AG, GG. 
+* If we want to know which of the three possibilities, we can do this for SNPs. 
+* Use probes to hybridize to piece of sequence which has A, G for example. 
+* Genotype millions of SNPs at a time. Arrays popular for GWAS studies to understand which alleles are associated with genes of interest. 
+
+3. **Detection of transcription factor binding sites** - genome is more than just sequence, measuring the chemical processes taking place around the genome, i.e. where specific protein is bound. 
+
+* Transcription factor = proteins that start gene expression. * Have DNA, want to know where specific protein is bound. Start by fragmenting DNA, some pieces have protein and others do not. 
+* Divide by presence of protein vs. not - hybridize the part with protein with tiling array and if lights up, the location is where the protein was bound. 
+* Intensities are not that reliable, must be controlled by hybridizing the total DNA for comparison. 
+
+
 
 ### Labeling 
 Need indirect ways to count molecules. Labeling adds a chemical to each molecule, use optical scanner to identify the different intensities based on # labels and quantify. 
