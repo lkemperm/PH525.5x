@@ -117,3 +117,26 @@ Major manufacturers:
 2. Agilent (circles on grid, one or two color)
 3. Illumina (high density, one or two color)
    * Uses beads instead of in-situ sequencing
+   
+   
+### Brief introduction of NGS 
+
+* Early 21st century Human Genome sequenced 
+* Took DNA from several humans, pooled together and sequenced base x base the entire thing (1st generation)
+* Back then, millions of clones 1k bP long. Different labs would sequence each clone, and then put together using computational methods. Cost billions of dollars 
+* NGS is high throughput - billions of bP in a week for thousands of dollars. 
+* Many copies of DNA to obtain measurement.
+
+1. Fragment DNA using mol bio --> feed into NGS sequencer 
+2. Read sequences for all of the fragments to get the reads (bases) 
+
+Illumina flow cells - 8 lanes (1 per sample)
+
+* For each lane, we get 160mill short reads (50-70bP long)
+* Starts with DNA sample with fragments. Add adapters to each one to allow fragments to attach to pieces of solid. Once attached, amplify each one so that we have millions of copies (clusters) - adapter + fragment + copies. 
+* Add labeled nucleotides. Different from microArray - not having two molecules join. 
+* First base of the sequence attached to compliment, and starts forming double stranded. Once the first nucleotide attaches, take a picture and read intensity of labels. Keep doing this until we get through almost the entire fragment. 
+* Images from sequencing machine represent clusters - first base of sequence represented by cluster. 
+* Next step we get another image corresponding to bases on the second location and assemble the whole molecular sequence. 
+
+
