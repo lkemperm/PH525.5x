@@ -139,4 +139,61 @@ Illumina flow cells - 8 lanes (1 per sample)
 * Images from sequencing machine represent clusters - first base of sequence represented by cluster. 
 * Next step we get another image corresponding to bases on the second location and assemble the whole molecular sequence. 
 
+### Applications of NGS 
 
+* Similarly to microArray technology, we can measure gene expression, genotype, location of transcription factor binding sites 
+* First application: sequencing the genome 
+* Resequencing: do not sequence the whole genome with a new subject of same species, only areas of interest. SNP discovery, genotyping, variant discovery and quantification 
+* Measuring methalation 
+* Used be 1000s genomes project, human epigenome project
+
+**Going from series of reads to measurements**
+* First step in analyzing the NGS sequences: finding where the reads came from. All reads get mapped to the genome : matches to the reference genome 
+* First application: Variant detection 
+* Finding new SNPs. Take sample, sequence, align to genome, go to any specific location and ask if it is a SNP by analyzing whether there are G's and A's (heterozygous) 
+* There are sequencing errors 
+* Deletion: alleles are missing a base 
+
+* RNA seq - NGS to quantify gene expression 
+* We have RNA - two samples to see if they are different. 
+* RNA --> DNA, sequence DNA and map / align to reference genome 
+* Compare gene expression in the two samples 
+
+* ChipSeq - finding transcription factor binding sites 
+* DNA --> separate fragments bound to specific proteins and sequence those sections 
+* Location of genome bound to many reads --> means that it was bound to that protein 
+* Peak Detectors to identify locations of protein binding sites 
+
+***Analyzing gene expression microarray dataset***
+```{r}
+library(tissuesGeneExpression)
+data(tissuesGeneExpression)
+paste("log scale intensities for microarray probes: ")
+head(e[,1:5])
+paste("tissue types of each sample: ")
+table(tissue)
+
+paste("overall mean expression of 209169_at", mean(e["209169_at",]))
+paste("mean expression by tissue: ")
+sort(by(e["209169_at",], tissue, mean))
+```
+
+***Gene Associated with probe ID***
+```{r}
+library(hgu133a.db)
+symbol = mapIds(hgu133a.db, keys=rownames(e), column="SYMBOL", keytype="PROBEID")
+paste("gene associated with probe ID 209169_at", symbol["209169_at"])
+
+num_features <- sum(symbol == "H2AX", na.rm=TRUE)
+paste("number of features measuring expression of H2AX: ", num_features)
+
+paste("associated probes: ")
+symbol[grep("H2AX", symbol)]
+
+paste("comparing distributions across tissues: ")
+boxplot(as.numeric(e["205436_s_at",])~tissue)
+
+paste("finding gene specific to placenta: ")
+IDs = c("201884_at", "209169_at", "206269_at", "207437_at", "219832_s_at", "212827_at")
+sort(rowMeans(e[IDs, which(tissue == "placenta")]))
+```
