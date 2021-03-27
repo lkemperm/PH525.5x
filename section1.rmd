@@ -21,7 +21,6 @@ subset_matching_desc <- sig.gene70[which(sig.gene70$Description == "cyclin E2"),
 paste("NCBI gene matching the description cyclin E2: ", subset_matching_desc$NCBI.gene.symbol)
 number_kinase_coding_genes <- length(grep("kinase", sig.gene70$Description))
 paste("Number of kinase coding genes responsible for cell to cell communication: ", number_kinase_coding_genes)
-
 ```
 
 ## Assessment: Phenotypes 
