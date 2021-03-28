@@ -1,0 +1,192 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
+# Bioconductor Basics: Granges and Biostrings
+
+* Core Bioconductor structures for representing genes and genetic sequences 
+
+## Motivation and Introduction
+
+* Case study: given genomic DNA extracted from human cells, where on the genome does the nuclear protein ESRRA (estrogen related receptor alpha) bind? 
+* Role of estrogen receptors in breast cancer 
+* Data comes from analysis of ChIP-seq experiments: performed in ENCODE project - import info for files in "narrowPeak" format and analyze in Bioconductor GRanges object 
+* Identifying nearest transcriptional start site for each binding peak - assess whether regulatory activity of ESRRA occurs in transcriptional promoter regions 
+
+```{r}
+library(ERBS)
+data(HepG2)
+class(HepG2)
+```
+
+## GenomicRanges 
+
+* ERBS library from github repo 
+* Load two datasets - GM12878, HepG2. Estrogen receptor binding site datasets from two cell lines (cell-type dependent outcome). 
+* Contains: Chromosome start + end (1 row / region), strand information, score from peaks 
+* Access the GRanges objects as a matrix, i.e. subsetting is okay. 
+* **seqnames** function to access chromosome for each row. Returns object of type *Rle* - more efficient to save ordered by chromosome with counts. Can turn into character using **as.character**
+* Most of analysis is focused on first 23 chromosomes 
+* Function to order by genomic region
+* Iranges function not specific to genomics - Granges builds on Iranges in relation to genomics 
+
+```{r}
+# install ERBS
+library(devtools)
+install_github("genomicsclass/ERBS")
+
+library(GenomicRanges)
+
+# load GM12878 and HepG2 objects from ERBS package
+library(ERBS)
+data(GM12878)
+data(HepG2)
+
+# inspect HepG2 GRanges object
+class(HepG2)
+HepG2
+values(HepG2)
+
+# seqnames extracts chromosome names
+seqnames(HepG2)     # stored as type Rle
+chr = seqnames(HepG2)
+as.character(chr)    # view as character type
+
+# make a table of numbers of sequences on each chromosome
+table(chr)
+table(chr)[1:24]    # restrict to autosomes, X and Y
+
+# GRanges can be subsetted and ordered
+HepG2[chr=="chr20",]
+x = HepG2[order(HepG2),]
+seqnames(x)     # demonstrate usefulness of Rle type
+as.character(seqnames(x))
+```
+
+### Assessment: Genomic Ranges 
+
+```{r}
+library(GenomicRanges)
+paste("median of signal value column for HepG2 data: ")
+median(mcols(HepG2)$signalValue)
+
+paste("chromosome in region with highest signal value: ")
+max_index <- which.max(mcols(HepG2)$signalValue)
+chr = seqnames(HepG2)
+as.character(chr)[max_index]
+
+paste("Number of regions from chromosome 16: ")
+HepG2[chr == "chr16",]
+
+hist(width(HepG2))
+
+median_width <- median(width(HepG2))
+paste("Median width of all chromosomes: ", median_width)
+```
+
+## Bioconductor Infrastructure for genomics, microarray and NGS 
+
+* IRanges package - representing ranges of integers. Base pair arrangements we want to manipulate in genomics 
+* Vignette about classes and functions in IRanges package 
+* Simple functions have good performance 
+* Summary of most important functions
+* IRanges - start, end, width (i.e., 5, 10, 6bP long)
+* Start, end, and width functions 
+* Can specify > 1 range at a time to make IRanges objects of length n 
+* Intra-range methods: 
+
+* **Shift** - Intra range methods for IRanges - doesn't depend on other ranges contained in IRanges object. I.e., shift IRange to the left by 2. 
+* **Narrow** - relative to start, start at nth base pair 
+* **Flank** - get flanking sequence 3 base pairs from start or end (start = False). Also bi-directional (both=True)
+
+* Inter-range methods: 
+
+* **range** - will give beginning of the IRanges to the end, including gaps in between 
+* **reduce** - gives us base pairs covered by the original ranges (do not get gaps). Can ask for gaps. 
+* **disjoint** - set of ranges which has the same coverage as original IRanges object but non-overlapping. Contain union of all endpoints of the original range. 
+
+### Assessment: IRanges 
+```{r}
+library(IRanges)
+ir <- IRanges(101, 200)
+paste("*2 zooms in, giving range with half the width. New starting point: ", start(ir*2))
+n_ir <- narrow(ir, start=20)
+paste("narrow function with start of 20. New starting point: ", start(n_ir))
+paste("+25 operation gives width of resulting range: ", width(ir+25))
+
+m_ir <- IRanges(start=c(1, 11, 21),end=c(3, 15, 27))
+paste("sum of widths of multiple IRanges objects:", sum(width(m_ir)))
+
+x <- IRanges(start=c(101,106,201,211,221,301,306,311,351,361,401,411,501), end=c(150,160,210,270,225,310,310,330,390,380,415,470,510))
+library(ph525x)
+plotRanges(x)
+paste("Total width not covered by ranges in x:", sum(width(gaps(x))))
+
+paste("Number of disjoint ranges within ranges in x:", length(disjoin(x)))
+
+par(mfrow=c(2, 1))
+plotRanges(x, xlim=c(0, 600))
+plotRanges(resize(x, 1), xlim=c(0, 600))
+```
+
+
+## Genomic ranges: GRanges 
+
+* Extension of IRanges 
+* Contain a sequence name - IRange of chromosome Z. 
+* Can contain chromosome information and sequence length 
+* Sequence names as Rle 
+* IRanges and strange as Rle also 
+* Can shift similar to IRanges - will go off end of chromosome if exceeds length 
+* Wrap in trim function to make sure that the end at chromosome end does not exceed 
+* Metadata accessed with *mcols* 
+* Can add cols by *mcols$* 
+* Additional package called *GRangesList* - groups GRanges together by wrapping in function call 
+* Example of *GRangesList* - grouping exons by gene or by transcript 
+* Application of package - find overlaps between GRanges objects 
+* *findOverlaps* function - query and subject (see in help() function)
+* output of *findOverlaps* is a hits object with length representing # overlaps 
+* Same way to get the overlaps is *%over%* function - which returns logical vector 
+* *Rle* object defined by IRanges but similar object in base R = Run length encoding 
+* If vector repeats certain values, can save memory by number and number of times repeated 
+* *str* function gives us the compact representation 
+* Peering into *Rle* object - can use *Views* object to see *IRanges* from start to end. Only a virtual class - saves *Rle* and number of views / windows into it 
+* Can also use for *Fasta* files or other objects 
+
+### Assessment: GRanges 
+* GRanges object extends concept of interval ranges 
+* Ranges can be defined by: 
+   * chromosome we are referring to (seqnames in Bioconductor)
+   * strand of DNA we are referring to (+ or -)
+* These two pieces of information are necessary for specification of a range of DNA
+```{r}
+library(GenomicRanges)
+library(IRanges)
+library(ph525x)
+x = GRanges("chr1", IRanges(c(1,101),c(50,150)), strand=c("+","-"))
+paste("Get the internal IRanges from a GRanges object: ")
+
+plotGRanges = function(x) plotRanges(ranges(x))
+plotGRanges(x)
+plotGRanges(resize(x, 1))
+paste("Result of running resize(x, 1) is two ranges of width 1 which start at left-most point of the + strand ranges in x, 
+      and the right-most point of the - strand ranges in x (+ -> -)")
+
+paste("Q2: Intersecting transcripts with basic operations")
+
+x = GRanges("chr1", IRanges(c(101, 201, 401, 501), c(150, 250, 450, 550)), strand="+")
+y = GRanges("chr1", IRanges(c(101, 221, 301, 401, 541), c(150, 250, 350, 470, 550)), strand="+")
+par(mfrow=c(2,1))
+plotGRanges(x)
+plotGRanges(y)
+multiple_granges_list <- GRangesList(x,y)
+single_granges_list <- GRangesList(c(x, y))
+
+findOverlaps(x, y)
+
+paste("width of overlap between x and y: ", sum(width(union(x, y))) - sum(width(intersect(x, y))))
+
+z = GRanges("chr1", range(ranges(x)), strand="-")
+
+```
