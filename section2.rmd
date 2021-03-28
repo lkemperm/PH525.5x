@@ -202,3 +202,42 @@ z = GRanges("chr1", range(ranges(x)), strand="-")
 * Metadata that should be specified - strand information, genome, seqlengths, seqinfo 
 * How to pick out transcription start sites - plot overlapping genes. Resize with argument 1 to get down to one base from start. Gives us the addresses of start sites 
 * Finding promoters - interval of three bases upstream of bases upstream is regarded as a promoter. Use *flank* operation with argument 3 - gives us the locations of the upstream promoters. Use start=FALSE to indicate flank at the end of the interval rather than start. 
+
+## Finding Overlaps 
+* Example: finding genes that are close to reported binding sites and add some annotation to those genes 
+* HepG2 + GM12878 - reported binding sites for 2 cell lines 
+* Want to find the genes that are nearest to them. Instead of seperately, create a consensus GRanges which includes only sites that are common to both GRanges 
+* Function: *findOverlaps* uses query and subject - for each range, see if it appears in another range and return pair. Returns object of class *hits*. Only want the ones where there is a hit - use *queryHits* function and subset based on queryHits 
+* Extract just region information using *granges* function
+* Show extraction of genes in next video, and matching of the regions in ERBS dataset to genes 
+```{r}
+# load packages
+library(GenomicFeatures)
+library(GenomicRanges)
+library(IRanges)
+library(ERBS)
+
+# load ESRRA ChIP data
+data(HepG2)
+data(GM12878)
+
+# browseVignettes("GenomicRanges")
+
+# find binding sites common to both HepG2 and GM12878
+?findOverlaps
+# for each row in query, return overlapping row in subject
+res = findOverlaps(HepG2, GM12878)
+class(res)
+res
+
+# ranges from the query for which we found a hit in the subject
+index = queryHits(res)
+erbs = HepG2[index,]
+erbs
+
+# extract only the ranges
+granges(erbs)
+erbs
+
+
+```
