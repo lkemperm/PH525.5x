@@ -238,6 +238,27 @@ erbs
 # extract only the ranges
 granges(erbs)
 erbs
+```
 
+## Assessment: Finding Overlaps
+```{r}
+library(ERBS)
+data(HepG2)
+data(GM12878)
+paste("17th region of HepG2 starts at:", start(granges(HepG2[17])))
 
+dtn <- distanceToNearest(HepG2[17], GM12878)
+gm_idx <- subjectHits(dtn)
+start_site <- start(GM12878[gm_idx])
+distance_to_closest = mcols(dtn)$distance
+paste("Start site of closest region to 17th region of HepG2: ", start_site)
+paste("Distance between closest region to 17th region of HepG2: ", distance_to_closest)
+X <- vector(mode="integer", length=length(HepG2))
+for(i in seq_along(HepG2)) {
+     closest_region = distanceToNearest(HepG2[i], GM12878)
+     distance = mcols(closest_region)$distance
+     X[i] = distance
+}
+proportion_lt_2k_bp <- length(X[X < 2000]) / length(X)
+paste("proportion of distances < 2000 bp: ", proportion_lt_2k_bp)
 ```
