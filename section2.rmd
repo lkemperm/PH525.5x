@@ -411,3 +411,79 @@ symbol_of_gene <- select(Homo.sapiens, keys=keys, columns=c("SYMBOL"), keytype="
 paste("Symbol of gene id: ", symbol_of_gene$SYMBOL)
 
 ```
+
+## DNAString objects 
+
+* **Biostrings** package - efficient handling of DNA, RNA and amino acide sequences in Bioconductor 
+* Classes for representing individual molecular sequences and optimized functions for performing operations of sequences and sequence sets 
+* DNA sequences represented as **DNAString** objects. Also **RNAString** and **AAString** classes for representing RNA and protein sequences 
+* Collectively referred to as **XString** objects 
+
+```{r}
+library(Biostrings)
+dna <- DNAString("TCGAGCAAT")
+dna
+length(dna) # number of bases in a DNAString 
+try(DNAString("JQX")) # Invalid bases 
+try(DNAString("NNNACGCGC-TTA-CGGGCTANN")) # unknowns and gaps 
+dna[4:6] # substring 
+as.character(dna) # convert DNAString to character
+```
+
+## DNAStringSet objects 
+
+* Grouping sets of biostrings in order to operate on them together - **XStringSets**
+
+```{r}
+set1 <- DNAStringSet(c("TCA", "AAATCG", "ACGTGCCTA", "CGCGCA", "GTT", "TCA"))
+set1 
+set1[2:3] # extract subset of sequences 
+set1[[4]] # extract one sequence as a single DNAString 
+length(set1) # number of DNAStrings in set 
+width(set1) # size of each DNAString 
+duplicated(set1) # detect which sequences are duplicated 
+unique(set1) # keep only unique sequences 
+sort(set1)
+
+```
+
+## Operations on DNAStrings 
+* Walkthrough common operations 
+
+```{r}
+dna_seq <- DNAString("ATCGCGCGCGGCTCTTTTAAAAAAACGCTACTACCATGTGTGTCTATC")
+letterFrequency(dna_seq, "A") # count A in sequence 
+letterFrequency(dna_seq, "GC") # count G or C in sequence
+dinucleotideFrequency(dna_seq) # frequencies of all dinucleotides 
+trinucleotideFrequency(dna_seq) # frequencies of all trinucleotides 
+
+# convert DNAStrings 
+
+reverseComplement(dna_seq) # find reverse complement 
+translate(dna_seq) # amino acid translation 
+```
+
+## Matching and Counting with Biostrings 
+* Finding all locations or counting matches of a pattern in a molecular seqeunce are common tasks 
+* **Biostrings** package includes fast function for pattern matching and counting on **XString** and **XStringSet** objects. 
+
+```{r}
+# count and match on individual Biostrings
+dna_seq <- DNAString("ATCGCGCGCGGCTCTTTTAAAAAAACGCTACTACCATGTGTGTCTATC")
+dna_seq 
+countPattern("CG", dna_seq) # pattern CG occurs 5x 
+matchPattern("CG", dna_seq) # locations of the pattern
+start(matchPattern("CG", dna_seq)) # start locations of the pattern 
+matchPattern("CTCTTTTAAAAAAACGCTACTACCATGTGT", dna_seq) # match pattern of any length
+
+# check for pattern and its reverse complement 
+countPattern("TAG", dna_seq)
+countPattern(reverseComplement(DNAString("TAG")), dna_seq)
+
+# count and match on sets of BioStrings 
+set2 <- DNAStringSet(c("AACCGGTTTCGA", "CATGCTGCTACA", "CGATCGCGCCGG", "TACAACCGTACA"))
+set2 
+vcountPattern("CG", set2) # counts for entire DNAStringSet 
+vmatchPattern("CG", set2)
+vmatchPattern("CG", set2)[[1]] # access matches for first element of DNAStringSet
+```
