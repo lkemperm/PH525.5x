@@ -262,3 +262,426 @@ for(i in seq_along(HepG2)) {
 proportion_lt_2k_bp <- length(X[X < 2000]) / length(X)
 paste("proportion of distances < 2000 bp: ", proportion_lt_2k_bp)
 ```
+
+## Genes as GRanges
+
+* Mapping genes to binding sites 
+* Load Gene information from homo sapiens library and extract genes using function called **genes** - returns GRange 
+```{r}
+library(Homo.sapiens)
+library(ERBS)
+ghs = genes(Homo.sapiens)
+
+res = precede(erbs, ghs)
+res
+
+ghs[res[1:3]]
+
+```
+* Start and end of genes - series of locations. Also have ID used by Homo sapiens database to match gene info across different databases 
+* Gene with ID 1 is in chromosome 19. Start defined in IRanges. 
+* **strand** tells you which of two DNA strands the gene is on. When gene expression happens, DNA opens up and code for gene could be in either strand. 
+* Movement of the transcription is going in a certain direction 
+* Large -> small if -, small -> large if -. 
+* Transcription start site - depends on strand information 
+* Function from **GenomicRanges** package called **precede** - tells you what is ahead of the transcription start site which varies depending on strand 
+* Finds entry and query closest to subject only when in front of. 
+* Moving towards report on which genes are closest to binding sites 
+
+## Assessment: Genes as GRanges 
+
+```{r}
+library(Homo.sapiens)
+ghs = genes(Homo.sapiens)
+number_of_genes <- length(ghs)
+
+paste("number of genes represented: ", number_of_genes)
+chr_most_genes <- names(which.max(table(as.vector(seqnames(ghs)))))
+paste("chromosome with most genes: ", chr_most_genes)
+
+hist(width(ghs), nc=1000)
+
+median_width <- median(width(ghs))
+
+paste("median gene width: ", median_width)
+
+```
+
+## Finding the Nearest Gene 
+
+* Compute distance between each binding site and corresponding gene found with precede, use **distance** function 
+* Takes two GRanges objects, and the genes we have found with precede
+* We expect overlaps, however will not show up because we are requiring binding sites precede the genes 
+
+```{r}
+library(Homo.sapiens)
+ghs = genes(Homo.sapiens)
+library(ERBS)
+index = precede(erbs, ghs)
+ghs[index[1:3]]
+erbs[1:3]
+
+distance(erbs, ghs[index])
+
+tssgr = resize(ghs, 1) # shrink down to one going in direction towards transcription start site, aware of strand 
+tssgr
+d=distanceToNearest(erbs, tssgr)
+
+queryHits(d)
+dists = values(d)$distance
+hist(dists,nc=1000,xlim=c(0,100000))
+
+index = subjectHits(d)[dists < 1000]
+index
+
+
+```
+* define another distance: ask for each binding site, find the transcription start site that is closest 
+* For each of our binding sites, find the closest transcription start site using **distanceToNearest**. Finds distance to nearest given query and subject 
+* Now, we have zeros because there is overlap. Output is a **hits** object. Need to use **queryHits** rather than subsetting. 
+* For distance, use **values** function to extract columns and grab distance 
+
+* Index of genes that are closest using **subjectHits** 
+* Find genes that are closer than 1k to binding sites 
+* Use genes that were found to be close, and get further information 
+
+
+## Annotating Genes 
+* Use **select** function to query Homo sapiens database 
+* Need to give: key, columns we want to look at, key type 
+* Example of going from ranges to list of interesting genes 
+
+
+```{r}
+library(Homo.sapiens)
+library(ERBS)
+ghs = genes(Homo.sapiens)
+tssgr = resize(ghs, 1) # shrink down to one going in direction towards transcription start site, aware of strand 
+d=distanceToNearest(erbs, tssgr)
+dists = values(d)$distance
+index = subjectHits(d)[dists < 1000]
+tssgr[index,]
+keytypes(Homo.sapiens)
+keys = as.character(values(tssgr[index])$GENEID)
+columns(Homo.sapiens)
+res = select(Homo.sapiens, keys = keys,
+             columns = c("SYMBOL", "GENENAME"), keytype="GENEID")
+res[1:2,]
+```
+
+## Assessment: Finding and getting annotation for closest gene
+
+* Find the closest genes to some of our binding sites - use consensus set of regions 
+
+```{r}
+
+library(ERBS)
+data(HepG2)
+data(GM12878)
+res = findOverlaps(HepG2,GM12878)
+erbs = HepG2[queryHits(res)]
+erbs = granges(erbs)
+
+erbs2= intersect(HepG2,GM12878)
+
+erbs
+
+erbs2 
+
+library(Homo.sapiens)
+ghs = genes(Homo.sapiens)
+
+transcription_start_site=resize(ghs["100113402"], 1)
+paste("transcription start site for gene id 100113402: ", transcription_start_site)
+
+
+library(ERBS)
+data(HepG2)
+data(GM12878)
+res = findOverlaps(HepG2,GM12878)
+erbs = HepG2[queryHits(res)]
+erbs = granges(erbs)
+index = nearest(erbs[4], tssgr)
+index
+gene_id <- names(tssgr[index,]$GENEID)
+
+paste("gene id with TSS closest to 4th region of erbs: ", gene_id)
+keys = as.character(values(tssgr[index])$GENEID)
+symbol_of_gene <- select(Homo.sapiens, keys=keys, columns=c("SYMBOL"), keytype="GENEID")
+paste("Symbol of gene id: ", symbol_of_gene$SYMBOL)
+
+```
+
+## DNAString objects 
+
+* **Biostrings** package - efficient handling of DNA, RNA and amino acide sequences in Bioconductor 
+* Classes for representing individual molecular sequences and optimized functions for performing operations of sequences and sequence sets 
+* DNA sequences represented as **DNAString** objects. Also **RNAString** and **AAString** classes for representing RNA and protein sequences 
+* Collectively referred to as **XString** objects 
+
+```{r}
+library(Biostrings)
+dna <- DNAString("TCGAGCAAT")
+dna
+length(dna) # number of bases in a DNAString 
+try(DNAString("JQX")) # Invalid bases 
+try(DNAString("NNNACGCGC-TTA-CGGGCTANN")) # unknowns and gaps 
+dna[4:6] # substring 
+as.character(dna) # convert DNAString to character
+```
+
+## DNAStringSet objects 
+
+* Grouping sets of biostrings in order to operate on them together - **XStringSets**
+
+```{r}
+set1 <- DNAStringSet(c("TCA", "AAATCG", "ACGTGCCTA", "CGCGCA", "GTT", "TCA"))
+set1 
+set1[2:3] # extract subset of sequences 
+set1[[4]] # extract one sequence as a single DNAString 
+length(set1) # number of DNAStrings in set 
+width(set1) # size of each DNAString 
+duplicated(set1) # detect which sequences are duplicated 
+unique(set1) # keep only unique sequences 
+sort(set1)
+
+```
+
+## Operations on DNAStrings 
+* Walkthrough common operations 
+
+```{r}
+dna_seq <- DNAString("ATCGCGCGCGGCTCTTTTAAAAAAACGCTACTACCATGTGTGTCTATC")
+letterFrequency(dna_seq, "A") # count A in sequence 
+letterFrequency(dna_seq, "GC") # count G or C in sequence
+dinucleotideFrequency(dna_seq) # frequencies of all dinucleotides 
+trinucleotideFrequency(dna_seq) # frequencies of all trinucleotides 
+
+# convert DNAStrings 
+
+reverseComplement(dna_seq) # find reverse complement 
+translate(dna_seq) # amino acid translation 
+```
+
+## Matching and Counting with Biostrings 
+* Finding all locations or counting matches of a pattern in a molecular seqeunce are common tasks 
+* **Biostrings** package includes fast function for pattern matching and counting on **XString** and **XStringSet** objects. 
+
+```{r}
+# count and match on individual Biostrings
+dna_seq <- DNAString("ATCGCGCGCGGCTCTTTTAAAAAAACGCTACTACCATGTGTGTCTATC")
+dna_seq 
+countPattern("CG", dna_seq) # pattern CG occurs 5x 
+matchPattern("CG", dna_seq) # locations of the pattern
+start(matchPattern("CG", dna_seq)) # start locations of the pattern 
+matchPattern("CTCTTTTAAAAAAACGCTACTACCATGTGT", dna_seq) # match pattern of any length
+
+# check for pattern and its reverse complement 
+countPattern("TAG", dna_seq)
+countPattern(reverseComplement(DNAString("TAG")), dna_seq)
+
+# count and match on sets of BioStrings 
+set2 <- DNAStringSet(c("AACCGGTTTCGA", "CATGCTGCTACA", "CGATCGCGCCGG", "TACAACCGTACA"))
+set2 
+vcountPattern("CG", set2) # counts for entire DNAStringSet 
+vmatchPattern("CG", set2)
+vmatchPattern("CG", set2)[[1]] # access matches for first element of DNAStringSet
+```
+
+## Assessment: Biostrings 
+
+* eco seqeuence: short excerpt from E. coli K12 strain genome 
+* detect and analyze peptide encoded by genome fragment 
+
+```{r}
+eco <- DNAString("GGTTTCACCGCCGGTAATGAAAAAGGCGAACTGGTGGTGCTTGGACGCAACGGTTCCGACTACTCTGCTGCGGTGCTGGCTGCCTGTTTACGCGCCGATTGTTGCGAGATTTGGACGGACGTTGACGGGGTCTATACCTGCGACCCGCGTCAGGTGCCCGATGCGAGGTTGTTGAAGTCGA")
+eco
+number_of_bases=length(eco)
+paste("number of bases in eco: ", number_of_bases)
+count_atg <- countPattern("ATG", eco)
+paste("Potential start codon in eco sequence: ", count_atg)
+start_location_first_atg <- start(matchPattern("ATG", eco))
+paste("Start location of the first ATG trinucleotide: ", start_location_first_atg[1])
+
+subset_from_start_location <- eco[start_location_first_atg[1]:length(eco)]
+translated <- translate(subset_from_start_location)
+paste("Length of resulting subset translated into amino acid: ", length(translated))
+location_of_stop_codon <- start(matchPattern("*", translated))
+paste("Location of stop codon in AAString: ", location_of_stop_codon)
+subset_before_stop_codon <- translated[1:location_of_stop_codon-1]
+subset_before_stop_codon
+num_amino_acids <- length(subset_before_stop_codon)
+paste("Number of amino acids in AAString before stop codon: ", num_amino_acids)
+paste("Sequence: ", subset_before_stop_codon)
+
+positive_charge <- sum(countPattern("K", subset_before_stop_codon), countPattern("H", subset_before_stop_codon), 
+                       countPattern("R", subset_before_stop_codon)) 
+paste("Number of positively charged amino acids: ", positive_charge)
+negative_charge <- sum(countPattern("D", subset_before_stop_codon), countPattern("E", subset_before_stop_codon))
+paste("Number of negatively charged amino acids: ", negative_charge)
+
+net_charge <- positive_charge - negative_charge
+paste("Net charge of peptide at pH 7: ", net_charge)
+
+```
+## Getting the sequence of Regions 
+
+* How to use the whole reference genomic sequence of Homo Sapiens to look at the content of binding sites for the estrogen receptor
+* HepG2 is a GRanges telling us where ChIP-seq experiments have identified locations where the estrogen receptor nuclear protein will bind
+* Check the occurrence of certain short sequence called "binding motif" in the genomic sequence over which binding peaks are found 
+* Look up sequence of some genomic feature: match against the DNAString
+* **getSeq** function from BioStrings package 
+
+* would not in practice use fixed string motif, would use matrix representation or model for this indicating variation in some of the bases 
+* MotifDb package includes models for binding motifs 
+* Would also not do direct pattern matching of this type, but something reflecting the probabilistic structure of the binding process. See: program MEME and FIMO 
+
+* Summary: we have genomic sequence for all chromosomes of homo sapeins. We have binding peak addresses in a GRanges. We can use getSeq to get the sequence content of the ranges, and search for motifs in those sequences to confirm biological plausibility 
+
+```{r}
+library(ERBS)
+data(HepG2)
+library(BSgenome.Hsapiens.UCSC.hg19) # reference build that was used for labeling of peaks 
+Hsapiens # metadata about the construction of data object 
+ch17 <- Hsapiens$chr17 # sequence of chromosome 17
+class(Hsapiens)
+
+hepseq = getSeq(Hsapiens, HepG2) # dna string set of length hepg2 (303), one for each of binding peaks 
+hepseq 
+
+width(HepG2[1:5])
+
+rhepseq = getSeq(Hsapiens, shift(HepG2, 2500)) # collection of DNA strings which have no principled relationship to binding peaks 
+rhepseq 
+
+mot = "TCAAGGTCA" # one representation of binding motif for ER protein
+
+sum(vcountPattern(mot, hepseq)) # count of times the motif occurs
+
+sum(vcountPattern(mot, reverseComplement(hepseq))) # match reverse compliment of hepseq
+
+total_sum = sum(vcountPattern(mot, hepseq), vcountPattern(mot, reverseComplement(hepseq)))
+total_sum
+
+ # compare with the randomly selected equal length collection of DNA string
+sum(vcountPattern(mot, rhepseq), vcountPattern(mot, reverseComplement(rhepseq)))
+```
+## Assessment: Getting sequences 
+
+```{r}
+library(ERBS)
+library(GenomicRanges)
+data(HepG2)
+data(GM12878)
+res = findOverlaps(HepG2,GM12878)
+erbs = HepG2[queryHits(res)]
+erbs = granges(erbs)
+
+library(BSgenome.Hsapiens.UCSC.hg19)
+
+hepseq = getSeq(Hsapiens, erbs)
+gc_content <- (vcountPattern("C", hepseq) + vcountPattern("G", hepseq)) / width(hepseq)
+gc_content
+
+paste("median gc-content: ", median(gc_content))
+
+control_set <- getSeq(Hsapiens, shift(erbs, 10000))
+
+gc_content_control <- (vcountPattern("C", control_set) + vcountPattern("G", control_set)) / width(control_set)
+paste("median gc-content of control: ", median(gc_content_control))
+
+```
+
+## Assessment: GRanges and Biostrings 
+
+```{r}
+library(GenomicRanges)
+library(Biostrings)
+library(Homo.sapiens)
+library(BSgenome.Hsapiens.UCSC.hg19)
+library(ERBS)
+
+library(Homo.sapiens)
+g <- genes(Homo.sapiens)
+
+unique_seqlevels <- length(unique(seqlevels(g)))
+num_genes <- length(g)
+paste("number of genes in build: ", num_genes)
+paste("unique seqlevels: ", unique_seqlevels)
+
+chr21 <- keepSeqlevels(g, "chr21", pruning.mode = "coarse")
+paste("number of genes on chromosome 21: ", length(chr21))
+
+num_bp_longest_gene <-  max(width(chr21))
+paste("number of base pairs in longest gene on chromosome 21: ", num_bp_longest_gene)
+
+prop_positive <- length(strand(chr21)[strand(chr21) == "+"]) / length(strand(chr21))
+paste("proportion of genes on chromosome 21 on positive strand: ", prop_positive)
+
+hepseq = getSeq(Hsapiens, chr21)
+gc_content <- (vcountPattern("C", hepseq) + vcountPattern("G", hepseq)) / width(hepseq)
+paste("median gc content chr21: ", median(gc_content))
+
+fifth_seq <- hepseq[5]
+possible_start_codons <- vcountPattern("ATG", fifth_seq)
+paste("number possible start codons: ", possible_start_codons)
+
+start_locations <- vmatchPattern("ATG", fifth_seq)
+
+real_start_codon_loc <- start(start_locations)[["100151643"]][1]
+paste("start location within this gene of first ATG: ", real_start_codon_loc)
+
+from_start <- DNAString(substr(as.character(hepseq[5]), real_start_codon_loc, width(hepseq[5])))
+translated <- translate(from_start)
+location_codons <- matchPattern("*", translated)
+location_first_codon <- start(location_codons)[1]
+sequence_up_until_first_codon <- translated[1:location_first_codon-1]
+paste("sequence up until first codon: ", sequence_up_until_first_codon)
+
+snca <- genes(Homo.sapiens, filter=list(GENEID="6622"))
+tss_location = start(snca)
+paste("TSS location: ", tss_location)
+
+sequence <- getSeq(Hsapiens, snca)
+num_motifs <- sum(vcountPattern("ACTGTGAA", sequence), vcountPattern("ACTGTGAA", reverseComplement(sequence)))
+paste("Number of binding sites: ", num_motifs)
+
+# Load the GRanges corresponding to human genes from the Homo.sapiens package
+g <- genes(Homo.sapiens)
+
+# Load the ESRRA binding site GRanges in GM12878 cells
+data(GM12878)
+
+flanked = flank(g, 2000)
+
+promoter_start = start(flanked[100])
+promoter_end = end(flanked[100])
+
+paste("range for promoter of 100th gene in g: ", promoter_start, "-", promoter_end)
+
+res = findOverlaps(flanked, GM12878)
+
+num_overlaps = sum(countOverlaps(flanked, GM12878))
+num_unique_promoters_overlap = length(unique(queryHits(res)))
+num_unique_gm128_overlap = length(unique(subjectHits(res)))
+paste("unique GM12878 ESRRA binding sites overlap with promoters: ", num_unique_gm128_overlap)
+paste("Unique promoters overlapping with GM12878 ESRRA binding sites: ", num_unique_promoters_overlap)
+
+shifted = shift(flanked, 10000)
+res_shifted = findOverlaps(shifted, GM12878)
+num_unique_promoters_overlap_s = length(unique(queryHits(res_shifted)))
+num_unique_gm128_overlap_s = length(unique(subjectHits(res_shifted)))
+num_overlaps = length(res_shifted)
+paste("number of overlaps: ", num_overlaps)
+paste("unique GM12878 ESRRA binding sites overlap with promoters post shift: ", num_unique_gm128_overlap_s)
+paste("Unique promoters overlapping with GM12878 ESRRA binding sites post shift: ", num_unique_promoters_overlap_s)
+
+ratio_shifted = num_unique_gm128_overlap / num_unique_gm128_overlap_s
+paste("ratio of the number of unique ESRRA binding sites overlapping promoters versus the number of unique ESRRA binding sites overlapping shifted regions in GM12878 cells: ", ratio_shifted)
+
+#erbs = granges(erbs)
+#index = nearest(erbs[4], tssgr)
+#index
+#gene_id <- names(tssgr[index,]$GENEID)
+
+```
