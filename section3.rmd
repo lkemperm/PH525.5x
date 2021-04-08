@@ -244,3 +244,51 @@ metadata(rowRanges(se))
 metadata(se)$MIAME
 abstract(metadata(se)$MIAME)
 ```
+
+## Assessment: SummarizedExperiment 
+
+```{r}
+library(airway)
+data(airway)
+metadata(airway)
+
+dim(airway)
+
+sample_metadata <- colData(airway)
+sample_cell_line = sample_metadata["SRR1039509","cell"]
+paste("Cell line associated with sample: ", sample_cell_line)
+
+index_min = which.min(sample_metadata$avgLength)
+sample_name <- rownames(sample_metadata[index_min,])
+paste("Sample with shortest average read length: ", sample_name)
+
+num_genes=length(rowRanges(airway))
+paste("number of genes in dataset: ", num_genes)
+
+g100_md <- rowRanges(airway)[[100]]
+num_exons_g100 <- length(g100_md)
+paste("number of exons at 100th gene: ", num_exons_g100)
+
+total_bp_long_including_introns <- sum(width(range(g100_md)))
+paste("number of bases long of 100th gene (including introns): ", total_bp_long_including_introns)
+tssgr <- resize(range(rowRanges(airway)[[100]]), 1)
+tss <- start(tssgr)
+paste("transcription start site of 100th gene: ", tss)
+
+expr <- assay(airway)["ENSG00000103196",]
+mean_expr <- mean(expr)
+paste("mean expression of ENSG00000103196 across all samples: ", mean_expr)
+
+samples_treated_w_dex <- rownames(sample_metadata[which(sample_metadata$dex == "trt"),])
+expr_treated <- subset(expr, names(expr) %in% samples_treated_w_dex)
+mean_expr_treated <- mean(expr_treated)
+paste("mean expression of ENSG00000103196 across all samples treated with dex: ", mean_expr_treated)
+
+expr_untreated <- subset(expr, !names(expr) %in% samples_treated_w_dex)
+mean_expr_untreated <- mean(expr_untreated)
+paste("mean expression of ENSG00000103196 across all samples not treated with dex: ", mean_expr_untreated)
+
+log_ratio_trt_untrt <- log2(mean_expr_treated / mean_expr_untreated)
+paste("log ratio of mean expression between treated and untreated: ", log_ratio_trt_untrt)
+
+```
