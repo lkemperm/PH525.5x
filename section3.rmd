@@ -159,7 +159,7 @@ plot(MA$A[,1], MA$M[,1])    # MA plot for first sample
 # microarray image
 mypar(1,1)
 imageplot(MA$M[,2], RG$printer, zlim=c(-3,3))
-#dev.off()
+dev.off()
 ```
 
 ## Assessment: Reading microarray data 
@@ -242,7 +242,7 @@ metadata(rowRanges(se))
 
 # additional metadata, including sample information
 metadata(se)$MIAME
-abstract(metadata(se)$MIAME)
+#abstract(metadata(se)$MIAME)
 ```
 
 ## Assessment: SummarizedExperiment 
@@ -290,5 +290,195 @@ paste("mean expression of ENSG00000103196 across all samples not treated with de
 
 log_ratio_trt_untrt <- log2(mean_expr_treated / mean_expr_untreated)
 paste("log ratio of mean expression between treated and untreated: ", log_ratio_trt_untrt)
+```
+
+## Importing NGS data in R 
+
+* Two main Bioconductor packages for working with NGS data: 
+  
+  - **Rsamtools** - low-level functions for reading and parsing raw NGS stored in standard formats. Interface to samtools (implemented in C)
+  - **GenomicAlignments** - high-level functions and classes for reading and organizing NGS data as bioconductor objects 
+
+* BAM files - compressed format of SAM. Contains information about alignment of NGS reads to reference genome. Producted by alignment software which takes: fastq files, genomic index created from reference genome. 
+* Alignment software is application specific - i.e. RNA-seq programs different from genomic DNA sequencing 
+
+### How to import NGS data using Rsamtools 
+
+Example from pasillaBamSubset package 
+```{r}
+library(pasillaBamSubset)
+library(Rsamtools)
+filename <- untreated1_chr4()
+# create bamfile object which allows other functions to know how to process 
+bf <- BamFile(filename) # information about chromosomes which are declared in header of the BAM file
+seqinfo(bf)
+s1 <- seqlengths(bf)
+
+quickBamFlagSummary(bf)  # summary of the kind of alignments in the file 
+```
+
+### Specifying: what and which 
+
+* Number of functions in Rsamtools take argument param which expects **ScanBamParam** specification 
+* Two important options: 
+  
+  - what - what kind of information to extract 
+  - which - which ranges of alignments to extract? 
+  
+* BAM files often paired with index file to quickly pull out info about reads from a particular genomic range 
+```{r}
+# count the number of records (reads) on chromosome 4: 
+gr <- GRanges("chr4", IRanges(1, s1["chr4"]))
+countBam(bf, param = ScanBamParam(which=gr))
+
+reads <- scanBam(BamFile(filename, yieldSize = 5))  # limit number of reads which will be extracted to 5 at a time. Each time we call scanBam we will get 5 more reads until there are no more 
+```
+
+### Examining the output of scanBam 
+
+* **reads** object is a list of lists - outer list indexes over the ranges in the which command. Innter list contains info from the bam file - since we didn't specify what we get everything 
+
+```{r}
+class(reads)
+names(reads[[1]])
+reads[[1]]$pos # aligned start position 
+reads[[1]]$rname # chromosome 
+reads[[1]]$strand # the strand 
+reads[[1]]$qwidth # the width of the read 
+reads[[1]]$seq # the sequence of the read 
+
+# Example specifying what and which to specify what parameters to extract over which ranges 
+
+gr <- GRanges("chr4", IRanges(500000, 700000))
+reads <- scanBam(bf, params = ScanBamParam(what=c("pos", "strand"), which=gr))
 
 ```
+
+### GenomicAlignments package 
+
+* Containers for storing and manipulating short genomic alignments. Counting, computing coverage, junction detection, working with nucleotide content of the alignments 
+* Two most important functions in **GenomicAlignments** are: 
+
+  - **readGAlignments()** - read data from BAM files 
+  - **summarizeOverlaps()** - simplifies counting reads in genomic ranges across one or more files 
+  
+```{r}
+library(GenomicAlignments)
+ga <- readGAlignments(bf)
+length(ga)
+
+granges(ga[1]) # extract GRanges object within GAlignments object 
+
+# GenomicRanges functions that work on GAlignments 
+
+gr <- GRanges("chr4", IRanges(700000, 800000))
+(fo <- findOverlaps(ga, gr))
+countOverlaps(gr, ga)
+table(ga %over% gr)
+```
+
+## Assessment: Importing NGS data 
+* pasillaBamSubset package - BAM file containing a subset of reads from single-end RNA-seq experiment in fruit fly, aligning to chromosome 4 
+
+```{r}
+library(pasillaBamSubset)
+library(Rsamtools)
+filename <- untreated1_chr4()
+bf <- BamFile(filename)
+gr <- GRanges("chr4", IRanges(440000, 470000))
+num_read_aligns <- countBam(bf, param = ScanBamParam(which=gr))["records"]
+paste("number of read aligns between chromosomes 440k - 470k: ", num_read_aligns)
+
+rs_dna_string_set <- scanBam(bf, params = ScanBamParam(what="seq", which=gr))
+seq_data <- rs_dna_string_set[[1]]$seq
+gc_content <- (vcountPattern("C", seq_data) + vcountPattern("G", seq_data)) / width(seq_data)
+mean_gc_content <- mean(gc_content)
+paste("average proportion of reads which align to chromosome 4 between positions 440k and 470k: ", mean_gc_content)
+
+mean(letterFrequency(seq_data, "GC", as.prob=TRUE))
+
+library(GenomicAlignments)
+ga <- readGAlignments(BamFile(filename))
+hist(start(ga), breaks=100)  # genes are spread out on the chromosome
+
+library(TxDb.Dmelanogaster.UCSC.dm3.ensGene)
+g <- genes(TxDb.Dmelanogaster.UCSC.dm3.ensGene)    # GRanges corresponding to genes
+
+g2 <- g[g %over% GRanges("chr4", IRanges(200000, 300000))]
+
+num_overlaps <- sum(countOverlaps(ga, g2["FBgn0039890"]))
+paste("negative strand reads overlapping the FBgn0039890 gene: ", num_overlaps)
+```
+
+## Creating a count table from a BAM file 
+* How to count sequencing reads which fall into genomic features 
+* End up with summarized experiment object - count matrix with rows corresponding to genomic ranges and columns corresponding to different samples
+* Mapped to DM3 genome 
+* If can't find transcript database you are interested in you can use the makeTranscriptDbFromGFF file function 
+* Files contain transcripts and exons which make up the gene 
+```{r}
+library(pasillaBamSubset)
+library(TxDb.Dmelanogaster.UCSC.dm3.ensGene) # transcript database 
+txdb <- TxDb.Dmelanogaster.UCSC.dm3.ensGene
+gr1 <- exonsBy(txdb, by="gene") # for each gene, pull out the exons 
+gr1[100] # GRangesList of exons for 100th gene 
+gr1[[100]] # GRanges with exons of 100th gene 
+gr1[[100]][1] # first exon of 100th gene 
+
+# paths to BAM files
+fl1 <- untreated1_chr4()
+fl2 <- untreated3_chr4()
+
+library(Rsamtools)
+library(GenomicRanges)
+library(GenomicAlignments)
+
+# specify files with BamFileList - container for two files 
+fls <- BamFileList(c(fl1, fl2)) # can specify yieldSize for number of reads 
+names(fls) <- c("first", "second")
+
+# find reads that overlap exons. Different counting modes possible 
+# inter.feature: if read overlaps multiple features, it should not be counted which is the default 
+# singleEnd: files have single-end reads instead of paired-end reads 
+# fragments: if you are counting reads in paired end, you also want to count where only one of two reads in a pair aligns 
+so1 <- summarizeOverlaps(features=gr1, reads=fls, ignore.strand=TRUE)
+so1
+
+# examine count matrix - assay functions pulls the first matrix from the assay slot 
+head(assay(so1))
+colSums(assay(so1))  # number of reads which align uniquely to these features 
+
+# examine rest of the SummarizedExperiment components 
+rowRanges(so1)
+colData(so1)
+colData(so1)$sample <- c("one", "two")
+colData(so1)
+metadata(rowRanges(so1))
+
+# exploratory data analysis of counts 
+x <- assay(so1)[,1]
+hist(x[x > 0], col="grey")
+hist(x[x > 0 & x < 10000], col="grey")
+plot(assay(so1) + 1, log="xy")  # highly correlated samples 
+
+# count second file as paired-end reads 
+
+fls <- BamFileList(fl2)
+so2 <- summarizeOverlaps(features=gr1, 
+                         reads=fls, 
+                         ignore.strand=TRUE, 
+                         singleEnd=FALSE,
+                         fragments=TRUE
+                         )
+colSums(assay(so2))
+colSums(assay(so1))
+
+plot(assay(so1)[,2], assay(so2)[,1], xlim=c(0,5000), ylim=c(0,5000), 
+     xlab="single end counting", ylab="paired end counting")
+abline(0,1)
+abline(0,0.5)
+```
+
+* rowData - information about the genes 
+* colData: information about the samples 
+* metadata on the features (rowData) - how the rowData was generated 
