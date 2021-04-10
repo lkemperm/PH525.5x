@@ -336,7 +336,7 @@ reads <- scanBam(BamFile(filename, yieldSize = 5))  # limit number of reads whic
 
 ### Examining the output of scanBam 
 
-* **reads** object is a list of lists - outer list indexes over the ranges in the which command. Innter list contains info from the bam file - since we didn't specify what we get everything 
+* **reads** object is a list of lists - outer list indexes over the ranges in the which command. Inner list contains info from the bam file - since we didn't specify what we get everything 
 
 ```{r}
 class(reads)
@@ -482,3 +482,244 @@ abline(0,0.5)
 * rowData - information about the genes 
 * colData: information about the samples 
 * metadata on the features (rowData) - how the rowData was generated 
+
+## Assessment: Count table creation 
+
+```{r}
+library(pasillaBamSubset)
+library(TxDb.Dmelanogaster.UCSC.dm3.ensGene)
+txdb <- TxDb.Dmelanogaster.UCSC.dm3.ensGene
+
+g <- genes(txdb)
+g <- g[seqnames(g) == "chr4"]
+
+grl <- exonsBy(txdb, by="gene")
+grl <- grl[names(g)]
+
+all.equal(names(g), names(grl))
+
+library(Rsamtools)
+bf <- BamFile(untreated1_chr4())
+
+library(GenomicAlignments)
+g_sum <- summarizeOverlaps(features=g, 
+                           reads=bf, 
+                           ignore.strand=TRUE)
+grl_sum <- summarizeOverlaps(features=grl, 
+                             reads=bf,
+                             ignore.strand=TRUE
+                             )
+
+g_idx_nonzero = which(assay(g_sum) != 0)
+
+prop_nonzero <- assay(grl_sum)[g_idx_nonzero] / assay(g_sum)[g_idx_nonzero]
+avg_prop <- mean(prop_nonzero) 
+paste("mean ratio of counts in grl and g after removing zero counts: ", avg_prop)
+
+assay_data <- (assay(grl_sum) / sum(assay(grl_sum)))* 1000000
+fpm_gene_chr4 <- assay_data["FBgn0002521",]
+paste("FPM for the first gene FBgn0002521: ", fpm_gene_chr4)
+
+ebp <- sum(width(reduce(grl)))
+count <- assay(grl_sum)
+fpm <- (count / sum(count)) * 1e6
+fpkm <- (fpm / ebp) * 1e3
+fpkm[1]
+```
+
+## The GEOquery package: ExpressionSets from NCBI's repository 
+
+* Institutional archives of microarrays 
+* NCBI example: 17k gene expression assay platforms, 90k series, 4k datasets, 2.2mil samples 
+* GEOmetadb - 6 gB SQLite database. Tool for local investigation of whole GEO contents 
+* Pull desired experiment into R session with GEOquery 
+* treated with and cell type are basic experimental factors (treatment vs. control)
+
+```{r}
+library(GEOquery)
+#glioMA = getGEO("GSE78703")[[1]]
+#glioMA
+
+#names(pData(glioMA))
+#glioMA$molecule_ch1
+#table(glioMA$`treated with:ch1`, glioMA$`cell type:ch1`)
+```
+
+## Platform-Oriented annotation 
+
+* GPL information page at GEO - 892 pages of platforms that have been identified 
+* 17k different platforms 
+* Most popular: Affymetrix human genome - 4760 series 
+* Interrogate probeset information with GEO - used to record expression values 
+* 1007_s_at interrogates gene DDR1 or certain microRNA - both occupy same cytoband so it is possible that you could use this probe 
+* Affymetrix oligo nucleotide probes deal with probe sets - each probe set is comprised of 25 mers 
+* Placed in different locations so that spatial artifacts on the array may be localized to one or another probe 
+* Robust to local spatial artifacts 
+* Info about geometry of chip, locations, contents of oligonucleotides with hgu133plus2probe package
+* Most Affymetrix platforms have the probe packages in Bioconductor 
+  - used to study CG content of oligos, identify structural artifacts of CG content on probe intensity 
+
+
+```{r}
+library(hgu133plus2.db)
+hgu133plus2.db
+
+library(hgu133plus2probe)
+head(hgu133plus2probe)
+dim(hgu133plus2probe)
+
+
+select(hgu133plus2.db, keytype="PROBEID", 
+       columns=c("SYMBOL", "GENENAME", "PATH", "MAP"), keys="1007_s_at")
+```
+
+## Assessment: Platform oriented annotation 
+
+```{r}
+library(hgu133plus2.db)
+
+query <- select(hgu133plus2.db, keytype="SYMBOL", 
+       columns=c("PROBEID"), keys="EGFR")
+
+num_probesets <- nrow(query)
+
+paste("number of probesets mapped to gene with symbol EGFR: ", num_probesets)
+
+library(GO.db)
+query <- select(GO.db, key="glial cell proliferation", columns=c("GOID", "ONTOLOGY", "TERM", "DEFINITION"), keytype="TERM")
+go_id <- query["GOID"][[1]]
+paste("Term for glial cell proliferation: ", go_id)
+
+num_probesets_annotated_query <- select(hgu133plus2.db, keytype="GO", 
+                                        columns=c("PROBEID"), keys=go_id)
+num_annotated_probesets = nrow(num_probesets_annotated_query)
+paste("number of probesets annotated to this biological process: ", num_annotated_probesets)
+
+```
+
+## Assessment: Genome-scale data 
+
+```{r}
+library(GEOquery)
+library(NGScopyData)
+library(Rsamtools)
+library(GenomicAlignments)
+library(TxDb.Hsapiens.UCSC.hg19.knownGene)
+library(AnnotationDbi)
+
+geoq <- getGEO("GSE3725")    # download a microarray dataset from GEO
+names(geoq)    
+lstem <- geoq[[1]]
+num_samples <- dim(pData(lstem))[1]
+paste("number of samples: ", num_samples)
+num_features <- dim(fData(lstem))[1]
+paste("number of features: ", num_features)
+
+lstem <- lstem[, !grepl("^GMP expressing", pData(lstem)$title)]
+titles <- as.character(pData(lstem)$title)
+cell_type <- gsub(".*\\((.*?)( enriched)?\\).*", "\\1", titles)
+
+# add cell_type column to pData
+pData(lstem)$cell_type <- factor(cell_type)
+
+pData(lstem)
+
+lmp_samples <- rownames(pData(lstem))[pData(lstem)$cell_type == "L-GMP"]
+
+num_lmp_samples <- length(pData(lstem)[pData(lstem)$cell_type == "L-GMP"])
+paste("number of samples from cell type L-GMP: ", num_lmp_samples)
+
+gene_symbol <- fData(lstem)[fData(lstem)$ID == "1421579_at", "Gene Symbol"]
+paste("gene symbol for probe id 1421579_at: ", gene_symbol)
+
+expression_142_at <- exprs(lstem)["1421579_at",]
+mean_expression_across_all_samples <- mean(expression_142_at)
+paste("mean expression level of 1421579_at across all samples: ", mean_expression_across_all_samples)
+
+expression_142_at_lmp <- exprs(lstem)["1421579_at",colnames(exprs(lstem)) %in% lmp_samples]
+
+mean_expression_across_lmp_samples <- mean(expression_142_at_lmp)
+paste("mean expression levels in L-GMP samples only: ", mean_expression_across_lmp_samples)
+
+library(NGScopyData)
+tps_27 <- tps_27.chr6()$bamFpath
+bf <- BamFile(tps_27)
+
+gr <- GRanges("chr6", IRanges(260000, 360000))
+num_reads <- countBam(bf, param = ScanBamParam(which=gr))[1,"records"]
+
+reads <- scanBam(bf, params = ScanBamParam(what=c("pos", "strand"), which=gr))
+
+
+r2 <- reads[[1]]$pos[reads[[1]]$pos > 270000 & reads[[1]]$pos < 350000]
+hist(r2, breaks=6)
+
+strand_info <- reads[[1]]$strand
+positive_strand <- strand_info[strand_info == "+"]
+negative_strand <- strand_info[strand_info == "-"]
+
+all.equal(length(strand_info), (length(positive_strand) + length(negative_strand)))
+
+prop_positive <- mean(reads[[1]]$strand == "+")
+
+# prop_positive <- length(positive_strand) / length(strand_info)
+paste("proportion of reads on positive strand: ", prop_positive)
+
+library(GenomicAlignments)
+ga <- readGAlignments(bf)
+num_reads <- length(ga)
+paste("number of reads: ", num_reads)
+
+granges(ga[1])
+
+mean_bp_per_reads <- mean(width(ga))
+paste("mean number of base pairs per read: ", mean_bp_per_reads)
+
+hist(start(ga))
+
+# load GRanges with human genes
+library(TxDb.Hsapiens.UCSC.hg19.knownGene)
+txdb <- TxDb.Hsapiens.UCSC.hg19.knownGene
+g <- genes(txdb)
+
+# subset to genes on chr6
+g_chr6 <- g[seqnames(g)=="chr6"]
+
+g_sum <- summarizeOverlaps(features=g_chr6, 
+                           reads=bf, 
+                           ignore.strand=TRUE)
+
+total_counts <- colSums(assay(g_sum))
+paste("total number of counts: ", total_counts)
+
+num_zero_count_genes <- length(assay(g_sum)[assay(g_sum) == 0])
+paste("number of genes with count of 0: ", num_zero_count_genes)
+
+widths <- width(g_chr6)
+count <- assay(g_sum)
+fpm <- (count / sum(count)) * 1e6
+maximum_fpm <- max(fpm)
+paste("maximum fpm: ", maximum_fpm)
+fpkm <- (fpm / widths) * 1e3
+median_fpkm <- median(fpkm)
+mean_fpkm <- mean(fpkm)
+paste("median fpkm: ", median_fpkm)
+paste("mean fpkm: ", mean_fpkm)
+num_genes_fpkm_gt_1000 <- length(fpkm[fpkm > 1000])
+paste("number of genes with fpkm over 1000: ", num_genes_fpkm_gt_1000)
+
+
+
+
+index_where_fpkm_gt_1000 <- which(fpkm > 1000)
+top_entrez <- unlist(names(g_chr6[index_where_fpkm_gt_1000]))
+
+output <- AnnotationDbi::select(org.Hs.eg.db, keys=top_entrez, keytype = "ENTREZID", columns = "SYMBOL")
+
+output
+
+
+
+
+
+```
