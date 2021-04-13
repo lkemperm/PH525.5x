@@ -1,9 +1,8 @@
 ---
-output:
-  pdf_document: default
-  html_document: default
+title: "PH525.5x Section 3: Management of genome-scale data with Bioconductor"
+author: "Lauren Kemperman"
+pdf_document: default
 ---
-# Management of genome-scale data with Bioconductor 
 
 ## Bioconductor Infrastructure: ExpressionSet and SummarizedExperimentSet 
 
@@ -717,9 +716,5 @@ top_entrez <- unlist(names(g_chr6[index_where_fpkm_gt_1000]))
 output <- AnnotationDbi::select(org.Hs.eg.db, keys=top_entrez, keytype = "ENTREZID", columns = "SYMBOL")
 
 output
-
-
-
-
 
 ```

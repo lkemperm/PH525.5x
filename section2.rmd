@@ -1,9 +1,8 @@
 ---
-output:
-  pdf_document: default
-  html_document: default
+title: "PH525.5x Section 2: Bioconductor Basics: GRanges and Biostrings"
+author: "Lauren Kemperman"
+pdf_document: default
 ---
-# Bioconductor Basics: Granges and Biostrings
 
 * Core Bioconductor structures for representing genes and genetic sequences 
 
