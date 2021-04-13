@@ -4,3 +4,105 @@ author: "Lauren Kemperman"
 date: "4/13/2021"
 output: pdf_document
 ---
+
+## Representing Reference Sequence 
+* Annotation concept hierarchy 
+* Base - reference genomic sequence for an organism 
+* Above this, organize the chromosomal sequence into regions of interest - i.e. 
+genes, transcripts 
+* SNPs and CpG sites are also regions of interest 
+* SNPS are single nucleotide 
+* Other varients -- indels, structural variants, fusions can constitute regions of interest but are more complicated to express + represent 
+* Within ROI, identify platform oriented annotation provided by assay manufacturer 
+* Once manufacturing happens, genomic annotation proceeds and annotations must be updated to account for ambiguities or updates for assay probe elements 
+* Above genomic sequence ROIs, annotations concerning groups with shared structural or functional properties 
+* Pathways with nodes being genes and paths being relationships between gene products, i.e. protein protein interaction, promotion, enhancement, repression (3rd level of hierarchy)
+* Begin with reference genomes 
+* Biostrings package - **available.genomes** - packages that represent reference genomic sequences for many different organisms 
+* Homo sapiens reference - some have repeat masking and there are versions which include the masked regions 
+  
+  - different numbers of sequences in the two builds due to contigs that haven't been placed on chromosomes yet 
+
+* Operations defined for BSGenome objects - substring, extract chromosomal information 
+* Bases in full sequence aren't completely resolved 
+* Application of iteration - count the number of bases in a number of chromosomes
+
+* If you have enough RAM, it is possible to operate on chromosomes in parallel and performing operations using multicore programming 
+```{r}
+library(BSgenome)
+library(Biostrings)
+ag = available.genomes()
+grep("Scerev", ag, value=TRUE)
+grep("Hsap", ag, value=TRUE)
+
+# inspect the human genome
+library(BSgenome.Hsapiens.UCSC.hg19)
+Hsapiens
+length(Hsapiens)
+class(Hsapiens)
+methods(class="BSgenome")
+
+# inspect human genome
+Hsapiens$chrX
+substr(Hsapiens$chrX, 5e6, 5.1e6)
+nchar(Hsapiens$chrY)
+nchar(Hsapiens[[24]])
+
+library(parallel)
+options(mc.cores=detectCores())
+
+system.time(sum(unlist(mclapply(18:24, function(x) nchar(Hsapiens[[x]])))))
+```
+
+## Assessment: Reference Genomes
+
+
+```{r}
+
+library(BSgenome)
+library(Biostrings)
+ag = available.genomes()
+library(BSgenome)
+grep("mask", grep("Drerio", available.genomes(), value=TRUE), invert=TRUE, value=TRUE) # exclude masked
+
+
+library(BSgenome.Hsapiens.UCSC.hg19.masked)
+c17m = BSgenome.Hsapiens.UCSC.hg19.masked$chr17
+
+c22m = BSgenome.Hsapiens.UCSC.hg19.masked$chr22
+round(100*sum(width(masks(c22m)$AGAPS))/length(c22m),0)
+
+```
+
+## Gene, Transcript and Exon Databases 
+
+* Can find information about reference genome regions such as genes, transcripts and exons on annotation packages 
+* UCSC Genome Browser - major source of reference genome structure annotation 
+* **TxDb.Hsapiens.UCSC.hg19** - collection of well documented protein coding genes, transcripts and exons on the hg19 build of the human genome. Additional TxDb packages exist for other organisms and genome builds 
+* Introduction to TxDb package architecture 
+
+```{r}
+# Import TxDb transcript database
+library(TxDb.Hsapiens.UCSC.hg19.knownGene)
+txdb = TxDb.Hsapiens.UCSC.hg19.knownGene
+class(txdb)
+methods(class="TxDb")
+
+# extract and inspect genes from TxDb 
+genes(txdb)
+table(strand(genes(txdb)))
+summary(width(genes(txdb)))
+
+# inspect larges gene in genome 
+id = which.max(width(genes(txdb)))
+genes(txdb)[id]
+library(org.Hs.eg.db)
+select(org.Hs.eg.db, keys="286297", keytype="ENTREZID", columns=c("SYMBOL", "GENENAME"))
+
+# compare total size of exons to total size of genes 
+ex = exons(txdb)
+rex = reduce(ex)
+ex_width = sum(width(rex)) # bases in exons 
+gene_width = sum(width(genes(txdb))) # bases in genes 
+ex_width/gene_width
+```
