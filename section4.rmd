@@ -409,3 +409,16 @@ library(grid)
 brpng = keggGet("hsa05212", "image")
 grid.raster(brpng)
 ```
+
+## Assessment: KEGG 
+
+```{r}
+k_id <- keggGet("hsa:3845")
+first_gene_name <- strsplit(k_id[[1]]$NAME, ",")[[1]][1]
+paste("Name of gene associated with KEGG ID: ", first_gene_name)
+
+library(png)
+oo = keggGet("hsa00790", "image")
+writePNG(oo, "images/hsa00790.png")
+
+```
