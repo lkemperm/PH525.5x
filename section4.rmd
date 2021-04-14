@@ -377,3 +377,35 @@ m = select(Homo.sapiens, keys=nn, keytype="ENTREZID",
 #datatable(m)
 
 ```
+## Using Kyoto Encyclopedia of Genes and Genomes (KEGG)
+
+* Detailled definitions that go beyond term to characterize gene ontology 
+* More advanced material to think about structure of relationship between terms - details on sqlite representation 
+* Interface to kyoto encyclopedia of genes and genomes (KEGG) - REST package without serializing, just issuing queries 
+* Generates information about organism-specific pathways that are defined (must know 3-letter prefix)
+* Different types of entities that can be returned - numerical code for genes given prefix, colon, number 
+* Instead if possess prefix called path + organism-specific path code we can get information about pathway 
+* Can find list of genes that are annotated 
+* If we are interested in a pathway and need a gene list, can get this 
+* Can also get diagram which indicates structure of network
+* Colored boxes most likely refer to genes, could be modifications of genes 
+* Sub-pathways identified and use to understand the nature of relationships between different genes 
+
+```{r}
+# load KEGGREST package and inspect organism-specific gene pathways
+library(KEGGREST)
+brca2K = keggGet("hsa:675")    # reference to a specific gene
+names(brca2K[[1]])
+brpat = keggGet("path:hsa05212")    # info on a pathway
+brpat[[1]]$GENE[seq(1,132,2)] # entrez gene ids for pathway
+
+# inspect some entrez ids
+select(org.Hs.eg.db, keys="5888", keytype="ENTREZID", columns ="SYMBOL")
+select(org.Hs.eg.db, keys="675", keytype="ENTREZID", columns ="SYMBOL")
+
+# diagram showing structure of network
+library(png)
+library(grid)
+brpng = keggGet("hsa05212", "image")
+grid.raster(brpng)
+```
