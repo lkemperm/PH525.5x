@@ -3,3 +3,6 @@ rawdata-master/*
 .Rproj.user
 .RData
 .Rhistory
+*.chain
+*.gz
+*.bed

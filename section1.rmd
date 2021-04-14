@@ -1,7 +1,7 @@
 ---
-output:
-  pdf_document: default
-  html_document: default
+title: "PH525.5x Section 1: What we measure and why"
+author: "Lauren Kemperman"
+pdf_document: default
 ---
 # Section 1: What we measure and why 
 
