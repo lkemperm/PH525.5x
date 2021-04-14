@@ -358,3 +358,22 @@ num_tas_evidence_codes <- length(go_annotations_for_ormdl3[go_annotations_for_or
 paste("number of GO annotations for ORMDL3 having TAS (traceable author statement) as their evidence code: ", num_tas_evidence_codes)
 
 ```
+
+## Assessment: Interactive tables for genomic annotation
+
+```{r}
+
+library(Homo.sapiens)
+g = genes(Homo.sapiens)
+library(ERBS)
+data(HepG2)
+
+kp = g[resize(g,1) %over% HepG2]
+
+nn = names(kp)
+m = select(Homo.sapiens, keys=nn, keytype="ENTREZID",
+           columns=c("SYMBOL", "GENENAME", "TERM", "GO"))
+#library(DT)
+#datatable(m)
+
+```
