@@ -185,7 +185,48 @@ hepg2_h3k4me3_broad
 alt_format <- ah[[id]]
 identical(hepg2_h3k4me3_broad, alt_format)
 
+```
+## Assessment: AnnotationHub
 
+```{r}
+library(AnnotationHub)
+ah = AnnotationHub()
+mah = mcols(ah)
+names(mah)
+sort(table(mah$species), decreasing=TRUE)[1:10]
 
+n_ctcf_binding_hepg2 <- length(names(query(query(ah, "HepG2"), "CTCF")))
+paste("Number of entries addressing CTCF binding in HepG2: ", n_ctcf_binding_hepg2)
+```
+## liftOver: Translating between reference builds 
+
+* Genomic annotations typically defined for fixed genome build 
+* Human is often hg19 
+* When analysis is performed on different genome build, annotations must be translated to the coordinates of the new build before use 
+* Process of translating called **lifting** 
+* Implemented in **liftOver()** function of **rtracklayer** Bioconductor package 
+* Tutorial will move features from genome build hg38 -> hg19 
+
+```{r}
+# liftOver from rtracklayer 
+library(rtracklayer)
+?liftOver 
+
+# chromosome 1 gene locations in hg38 
+library(TxDb.Hsapiens.UCSC.hg38.knownGene)
+tx38 <- TxDb.Hsapiens.UCSC.hg38.knownGene
+seqlevels(tx38, pruning.mode="coarse") = "chr1"
+g1_38 <- genes(tx38)
+
+# Download hg38 to hg19 chain file 
+library(AnnotationHub)
+ah <- AnnotationHub()
+ah.chain <- subset(ah, rdataclass == "ChainFile" & species == "Homo sapiens")
+query(ah.chain, c("hg19", "hg38"))
+ch <- ah [["AH14108"]]
+
+# perform the liftOver 
+g1_19L <- liftOver(g1_38, ch)
+g1_19L
 
 ```
