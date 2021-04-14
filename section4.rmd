@@ -467,3 +467,102 @@ sort(table(adf$ontology_name), decreasing=TRUE)[1:10]
 length(grep("oral glucose", adf$description))
 
 ```
+
+## Verified Assessment: Genomic Annotation 
+
+```{r}
+library(BSgenome.Hsapiens.UCSC.hg19)
+library(TxDb.Hsapiens.UCSC.hg19.knownGene)
+library(org.Hs.eg.db)
+library(ensembldb)
+library(EnsDb.Hsapiens.v75)
+library(GO.db)
+library(AnnotationHub)
+library(rtracklayer)
+library(KEGGREST)
+
+
+library(BSgenome.Hsapiens.UCSC.hg19)
+chr_of_interest <- c("chr6", "chr8", "chr19", "chr20", "chrM", "chrX", "chrY")
+sort(seqlengths(Hsapiens)[chr_of_interest])
+
+ratio <- nchar(Hsapiens$chrX) / nchar(Hsapiens$chrY)
+paste("Times larger X chromosome is compared to Y: ", ratio)
+
+library(TxDb.Hsapiens.UCSC.hg19.knownGene)
+txdb <- TxDb.Hsapiens.UCSC.hg19.knownGene    # abbreviate
+
+library(org.Hs.eg.db)
+e_id <- select(org.Hs.eg.db, keys="TP53", keytype="SYMBOL", columns=c("ENTREZID"))[1, "ENTREZID"]
+e_id
+
+txdb_genes <- genes(txdb)
+txdb_genes_mapped <- genes(txdb, filter=list(gene_id=e_id))
+gid_mapping <- txdb_genes[txdb_genes$gene_id == e_id]
+
+num_bp <- width(gid_mapping)
+paste("Number of base pairs TP53: ", num_bp)
+
+tp53_transcripts <- transcripts(txdb, filter=list(gene_id=e_id))
+paste("Number of transcripts: ", length(tp53_transcripts))
+
+ex = exons(txdb, filter=list(gene_id=e_id))
+num_exons <- length(ex)
+paste("Number of exons in TP53 gene: ", num_exons)
+rex = reduce(ex)
+ex_width = sum(width(ex)) # bases in exons 
+gene_width = sum(width(gid_mapping)) # bases in genes 
+prop_in_exons <- ex_width/gene_width
+paste("Number of bases in exons: ", ex_width)
+paste("Proportion of bp in exons: ", prop_in_exons)
+
+library(ensembldb)
+library(EnsDb.Hsapiens.v75)
+edb <- EnsDb.Hsapiens.v75    # abbreviate
+
+txs <- transcripts(edb, filter = GeneNameFilter("TP53"))
+num_transcripts <- length(txs)
+
+txs[1]$tx_cds_seq_start
+
+width(txs[txs$tx_biotype == "processed_transcript"])
+
+tp_go <- select(org.Hs.eg.db, keys="TP53", keytype="SYMBOL", columns=c("GO"))
+nrow(tp_go)
+length(unique(tp_go$GO))
+
+length(unique(tp_go[tp_go$EVIDENCE == "IMP", "GO"]))
+sort(table(tp_go$GO), decreasing = TRUE)[1]
+
+library(GO.db)
+allterms = keys(GO.db, keytype="TERM")
+allterms[1:5]
+
+term <- select(GO.db,  keys = "GO:0000981", keytype="GOID", columns="TERM")
+
+library(AnnotationHub)
+ah <- AnnotationHub()
+ah.chain <- subset(ah, rdataclass == "ChainFile" & species == "Homo sapiens")
+query(ah.chain, c("hg19", "hg38"))
+
+ch <- ah[["AH14150"]]
+
+# perform the liftOver 
+g1_19L <- liftOver(txdb_genes_mapped, ch)
+g1_19L
+
+# load KEGGREST package and inspect organism-specific gene pathways
+library(KEGGREST)
+#brca2K = keggGet("hsa:675")    # reference to a specific gene
+#names(brca2K[[1]])
+brpat = keggGet("path:hsa04115")    # info on a pathway
+brpat_genes <- brpat[[1]]$GENE
+length(brpat_genes)/2
+
+cyclin_indices <- grep("cyclin", brpat_genes)
+length(cyclin_indices)
+
+brpat_genes[cyclin_indices]
+#brpat[[1]]$GENE[seq(1,132,2)] # entrez gene ids for pathway
+
+```
