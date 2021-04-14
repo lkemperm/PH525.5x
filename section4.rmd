@@ -291,3 +291,44 @@ cat(export(mtar[1:5], format="bed"), sep="\n")
 cat("\n")
 cat(export(mtar[1:5], format="gff3"), sep="\n")
 ```
+## OrgDb: unified organism-specific annotation for systems biology 
+
+* Approach to annotation in Bioconductor 
+* Org packages have the form Org - two letter abbreviation of organism 
+* Two-letter abbreviation of organization - entrezgene is the resource 
+* Sqlite-based package 
+* If you know something about a RefSeq or UniProt ID you can learn about what genes have been annotated to it 
+
+```{r}
+# load human OrgDb and inspect available keys
+library(org.Hs.eg.db)
+org.Hs.eg.db
+keytypes(org.Hs.eg.db)
+
+# load GO.db and inspect available terms 
+library(GO.db)
+allterms = keys(GO.db, keytype="TERM")
+allterms[1:5]
+
+# find GOID (gene ontology tag) for ribosome biogenesis
+goid <- select(GO.db,  keys = "ribosome biogenesis", keytype="TERM", columns="GOID")[,"GOID"]
+
+# find symbols for genes involved in ribosome biogenesis 
+select(org.Hs.eg.db, keys=goid, keytype="GO", columns="SYMBOL")
+
+# you can pull out multiple columns at once
+e_id <- select(org.Hs.eg.db, keys = "GO:0042254", keytype="GO", columns=c("SYMBOL", "ENTREZID"))
+
+entrezid <- unlist(e_id[e_id["SYMBOL"] == "ZNF658", "ENTREZID"])
+
+# find gene ontology tags for related to ZNF658, which has the specified ENTREZID
+select(org.Hs.eg.db, keys=entrezid, keytype="ENTREZID", columns="GO")
+
+# save GO tags to a character vector
+select(org.Hs.eg.db, keys=entrezid, keytype="ENTREZID", columns="GO")$"GO"
+myk = unlist(.Last.value)
+
+# identify biological processes ZNF658 is involved in
+#select(GO.db, keys=myk, columns="TERM")
+
+```
