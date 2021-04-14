@@ -230,3 +230,25 @@ g1_19L <- liftOver(g1_38, ch)
 g1_19L
 
 ```
+## Assessment: liftOver 
+
+```{r}
+if(!file.exists("hg19ToHg38.over.chain")){
+  download.file("http://hgdownload.cse.ucsc.edu/goldenPath/hg19/liftOver/hg19ToHg38.over.chain.gz", "hg19ToHg38.over.chain.gz")
+  library(R.utils)
+  gunzip("hg19ToHg38.over.chain.gz")
+}
+
+library(ERBS)
+data(HepG2)
+library(rtracklayer)
+ch = import.chain("hg19ToHg38.over.chain") 
+nHepG2 = liftOver(HepG2, ch)
+
+s1 <- start(HepG2[1])
+s2 <- start(nHepG2[1])[[1]]
+
+abs_diff_bases <- abs(s2 - s1)
+paste("Number of bases moved upstream in first range of HepG2 to hg38: ", abs_diff_bases)
+
+```
