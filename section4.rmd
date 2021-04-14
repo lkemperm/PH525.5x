@@ -332,3 +332,29 @@ myk = unlist(.Last.value)
 #select(GO.db, keys=myk, columns="TERM")
 
 ```
+## Assessment: orgDb 
+
+```{r}
+library(org.Hs.eg.db)
+org.Hs.eg.db
+keytypes(org.Hs.eg.db)
+
+genes <- select(org.Hs.eg.db, key="17q21.1", keytype="MAP", columns=c("GENENAME", "ENTREZID"))
+num_genes <- nrow(genes)
+paste("Number of genes present on 17q21.1: ", num_genes)
+
+genes_with_go_tag <- select(org.Hs.eg.db, key="17q21.1", keytype="MAP", columns=c("GENENAME", "ENTREZID", "GO"))
+
+library(plyr)
+
+counts <- count(genes_with_go_tag, "GO")
+top_five_go_id <- counts[order(-counts$freq),][1:5,]
+
+go_annotations_for_ormdl3 <- select(org.Hs.eg.db, key="ORMDL3", keytype="SYMBOL", columns=c("EVIDENCE", "GO"))
+
+num_tas_evidence_codes <- length(go_annotations_for_ormdl3[go_annotations_for_ormdl3$EVIDENCE == "TAS",])
+
+
+paste("number of GO annotations for ORMDL3 having TAS (traceable author statement) as their evidence code: ", num_tas_evidence_codes)
+
+```
