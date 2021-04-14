@@ -252,3 +252,26 @@ abs_diff_bases <- abs(s2 - s1)
 paste("Number of bases moved upstream in first range of HepG2 to hg38: ", abs_diff_bases)
 
 ```
+## Data import and export with rtracklayer 
+
+* **rtracklayer** package parses data into common formats so they can easily be used as annotations in future analysis 
+
+```{r}
+library(devtools)
+install_github("genomicsclass/ERBS") # install ERBS package 
+
+f1 = dir(system.file("extdata",package="ERBS"), full=TRUE)[1] # access dat a
+readLines(f1, 4) # preview a few lines 
+
+library(rtracklayer)
+imp = import(f1, format="bedGraph") # import as bedGraph format
+imp
+
+genome(imp) # genome identifier tag not set, but can be set manually 
+genome(imp) = "hg19"
+genome(imp)
+
+export(imp, "demoex.bed") # export as BED format
+cat(readLines("demoex.bed", n=5), sep="\n") # check output file
+```
+

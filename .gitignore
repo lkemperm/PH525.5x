@@ -5,3 +5,4 @@ rawdata-master/*
 .Rhistory
 *.chain
 *.gz
+*.bed
