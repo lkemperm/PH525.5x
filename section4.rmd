@@ -422,3 +422,48 @@ oo = keggGet("hsa00790", "image")
 writePNG(oo, "images/hsa00790.png")
 
 ```
+
+## EBML's ontology lookup service
+
+* Dealing with collection of ontologies 
+* Effort by European Bioinformatics Institute to unify access to many ontologies dealing with different topics 
+* Ontology useful concept - different concept types, anatomies, biological processes, molecular functions 
+* Common vocabulary not immediately established 
+* Ontology establishes list of terms and identifying relationships among them 
+* OBO foundry - existence and relatedness 
+* Different approaches to dealing with language vocabulary - OBO way into that 
+* **rols** R interface - staging process of finding out about ontologies and getting content out of them 
+* **olsSearch** function in rols to look up ontology relationships + sources that deal with the term Glioblastoma 
+* Find out more by visiting OLS site 
+* Formal tags for glioblastoma as phenotype from two ontologies 
+* Rich information in resources about terms and rols package helps deal with concepts 
+
+```{r}
+library(rols)
+oo = Ontologies()
+oo
+oo[[1]]
+
+glis = OlsSearch("glioblastoma")
+glis
+res = olsSearch(glis)
+resdf = as(res, "data.frame") # get content
+resdf[1:4,1:4]
+resdf[1,5]  # full description for one instance
+
+```
+
+## Assessment: Ontology lookup 
+
+```{r}
+library(rols)
+diab = OlsSearch("diabetes")
+olsRows(allRows(diab))
+
+fulld = olsSearch(allRows(diab))
+adf = as(fulld, "data.frame")
+sort(table(adf$ontology_name), decreasing=TRUE)[1:10]
+
+length(grep("oral glucose", adf$description))
+
+```
