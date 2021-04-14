@@ -106,3 +106,86 @@ ex_width = sum(width(rex)) # bases in exons
 gene_width = sum(width(genes(txdb))) # bases in genes 
 ex_width/gene_width
 ```
+
+## ensembldb, EnsDb: annotation from EMBL
+
+* European initiative for annotating genome called ensembl 
+* Ensemble-based representations managed in package called EmsembleDb 
+* Different packages representing different builds of ensembl annotation for different organisms 
+* More direct relationship to database and database tables - gene, transcipt, transcript to exon mapping tables. 
+* More details provided to user through Ensembl transcripts method - get info on transcripts but also associated proteins, genes and biotype 
+
+
+```{r}
+# inspect data available from Ensembl
+library(ensembldb)
+library(EnsDb.Hsapiens.v75)
+names(listTables(EnsDb.Hsapiens.v75))
+
+# extract Ensembl transcripts 
+edb = EnsDb.Hsapiens.v75 # abbreviate 
+txs <- transcripts(edb, filter = GeneNameFilter("ZBTB16"), 
+                   columns = c("protein_id", "uniprot_id", "tx_biotype"))
+txs 
+
+# compare Ensembl and UCSC transcripts 
+alltx = transcripts(edb) # Ensembl is larger 
+utx = transcripts(txdb) # UCSC is smaller 
+
+# table of biological types of transcripts 
+table(alltx$tx_biotype)
+```
+## Assessment: Gene and transcript model
+
+```{r}
+library(devtools)
+install_github("genomicsclass/ph525x")
+library(ph525x)
+stopifnot(packageVersion("ph525x") >= "0.0.16") # do over if fail 
+modPlot("ESR1", useGeneSym=FALSE, collapse=FALSE) 
+
+library(TxDb.Hsapiens.UCSC.hg19.knownGene)
+txdb = TxDb.Hsapiens.UCSC.hg19.knownGene
+e_id <- select(edb, keys="ESR1", keytype="GENENAME", columns=c("ENTREZID"))[1, "ENTREZID"]
+n_transcripts <- length(transcripts(txdb, filter=list(gene_id=e_id)))
+paste("Number of transcripts comprimising model of ESR1: ", n_transcripts)
+```
+
+## AnnotationHub: finding and caching important information 
+
+* Central hub for genomic annotation files maintained by Bioconductor community 
+* Includes annotation files from UCSC, ENSEMBL, and the Broad Institute 
+* **AnnotationHub** allows you to search and download resources from inside R session 
+
+```{r}
+library(AnnotationHub)
+ah <- AnnotationHub()
+ah 
+
+length(unique(ah$species))
+
+ah_human <- subset(ah, species == "Homo sapiens")
+ah_human 
+
+query(ah, "HepG2")
+query(ah, c("HepG2", "H3K4me3"))
+hepg2 <- query(ah, "HepG2")
+hepg2_h3k4me3 <- query(hepg2, c("H3k4me3"))
+hepg2_h3k4me3
+hepg2_h3k4me3$tags 
+
+# display(query(ah, "HepG2"))
+
+e118_broadpeak <- query(hepg2_h3k4me3, c("E118", "broadPeak"))
+id <- e118_broadpeak$ah_id 
+id 
+
+hepg2_h3k4me3_broad <- ah[["AH29728"]]
+hepg2_h3k4me3_broad
+alt_format <- ah[[id]]
+identical(hepg2_h3k4me3_broad, alt_format)
+
+
+
+
+```
