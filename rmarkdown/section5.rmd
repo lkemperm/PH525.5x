@@ -1,0 +1,6 @@
+---
+title: 'PH525.5x Section 5: Inference for genomics with Bioconductor'
+author: "Lauren Kemperman"
+date: "4/15/2021"
+output: pdf_document
+---
